@@ -1,7 +1,9 @@
+import { memo } from 'react'
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
+import { getTooltipStyle, GRID_COLOR, TICK_COLOR } from '../utils/chartTheme'
 
 const fmtCurrency = v => {
   if (v >= 1000000) return `$${(v / 1000000).toFixed(1)}M`
@@ -9,14 +11,12 @@ const fmtCurrency = v => {
   return `$${v}`
 }
 
-import { getTooltipStyle, GRID_COLOR, TICK_COLOR } from '../utils/chartTheme'
-
 // Only include months that have real data
 function activeMonths(data) {
   return data.filter(m => m.bookings > 0 || m.rental > 0)
 }
 
-export function RevenueChart({ data }) {
+export const RevenueChart = memo(function RevenueChart({ data }) {
   const chartData = activeMonths(data)
   return (
     <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-none">
@@ -50,9 +50,9 @@ export function RevenueChart({ data }) {
       </ResponsiveContainer>
     </div>
   )
-}
+})
 
-export function OccupancyChart({ data }) {
+export const OccupancyChart = memo(function OccupancyChart({ data }) {
   const chartData = activeMonths(data)
   return (
     <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-none">
@@ -75,9 +75,9 @@ export function OccupancyChart({ data }) {
       </ResponsiveContainer>
     </div>
   )
-}
+})
 
-export function BookingsChart({ data }) {
+export const BookingsChart = memo(function BookingsChart({ data }) {
   const chartData = activeMonths(data)
   return (
     <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-none">
@@ -100,4 +100,4 @@ export function BookingsChart({ data }) {
       </ResponsiveContainer>
     </div>
   )
-}
+})

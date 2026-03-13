@@ -2,19 +2,53 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchCsv, parseDados2026, parseReportsInsights, parsePetTab, parseBedroomRevenue } from '../utils/parseData'
 
 const REFRESH_INTERVAL = 5 * 60 * 1000 // 5 minutes
+const CACHE_KEY = 'mr-mouse-dashboard-cache'
+const CACHE_TTL = 10 * 60 * 1000 // 10 minutes
 
 const BEDROOM_TABS = ['2 🛏️','3 🛏️','4 🛏️','5 🛏️','6 🛏️','7 🛏️','8 🛏️','9 🛏️','10 🛏️','11 🛏️','12 🛏️']
 
+function readCache() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const { ts, monthly, properties } = JSON.parse(raw)
+    if (Date.now() - ts > CACHE_TTL) return null
+    return { monthly, properties, ts: new Date(ts) }
+  } catch {
+    return null
+  }
+}
+
+function writeCache(monthly, properties) {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), monthly, properties }))
+  } catch {
+    // quota exceeded – silently ignore
+  }
+}
+
 export function useSheets() {
-  const [monthly, setMonthly] = useState([])
-  const [properties, setProperties] = useState([])
-  const [loading, setLoading] = useState(true)
+  const cached = readCache()
+  const [monthly, setMonthly] = useState(cached?.monthly ?? [])
+  const [properties, setProperties] = useState(cached?.properties ?? [])
+  const [loading, setLoading] = useState(!cached)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
-  const [lastUpdated, setLastUpdated] = useState(null)
-  const isFirstLoad = useRef(true)
+  const [lastUpdated, setLastUpdated] = useState(cached?.ts ?? null)
+  const isFirstLoad = useRef(!cached)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
+    // If not forced and cache is still valid, skip the network hit
+    if (!force && !isFirstLoad.current) {
+      const hit = readCache()
+      if (hit) {
+        setMonthly(hit.monthly)
+        setProperties(hit.properties)
+        setLastUpdated(hit.ts)
+        return
+      }
+    }
+
     try {
       if (isFirstLoad.current) {
         setLoading(true)
@@ -30,7 +64,6 @@ export function useSheets() {
         ...BEDROOM_TABS.map(t => fetchCsv(t)),
       ])
 
-      // Build lookup maps from supplemental tabs
       const petMap = parsePetTab(petRows)
 
       const revenueMap = new Map()
@@ -40,7 +73,6 @@ export function useSheets() {
         }
       }
 
-      // Merge all enrichment data into properties
       const baseProperties = parseReportsInsights(reportsRows)
       const enriched = baseProperties.map(p => {
         const key = p.name.toUpperCase()
@@ -57,23 +89,26 @@ export function useSheets() {
         }
       })
 
-      setMonthly(parseDados2026(dadosRows))
+      const parsed = parseDados2026(dadosRows)
+      setMonthly(parsed)
       setProperties(enriched)
       setLastUpdated(new Date())
+      writeCache(parsed, enriched)
     } catch (err) {
-      setError(err.message)
+      // On network failure, keep stale data if available
+      if (!monthly.length) setError(err.message)
     } finally {
       setLoading(false)
       setRefreshing(false)
       isFirstLoad.current = false
     }
-  }, [])
+  }, [monthly.length])
 
   useEffect(() => {
     load()
-    const timer = setInterval(load, REFRESH_INTERVAL)
+    const timer = setInterval(() => load(true), REFRESH_INTERVAL)
     return () => clearInterval(timer)
   }, [load])
 
-  return { monthly, properties, loading, refreshing, error, lastUpdated, refresh: load }
+  return { monthly, properties, loading, refreshing, error, lastUpdated, refresh: () => load(true) }
 }

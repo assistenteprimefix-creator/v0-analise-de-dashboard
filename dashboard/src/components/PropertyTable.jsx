@@ -1,5 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Search, Star, ChevronUp, ChevronDown, AlertCircle, Trophy, X, PawPrint } from 'lucide-react'
+
+function useDebounce(value, delay = 250) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(t)
+  }, [value, delay])
+  return debounced
+}
 
 const MONTH_ORDER = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
 
@@ -42,7 +51,8 @@ function getPropertyValue(p, col) {
 }
 
 export default function PropertyTable({ properties, alertsOnly = false, onClearAlerts }) {
-  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const search = useDebounce(searchInput, 250)
   const [condo, setCondo] = useState('all')
   const [beds, setBeds] = useState('all')
   const [guestFav, setGuestFav] = useState(false)
@@ -96,8 +106,8 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
     else { setSortCol(col); setSortDir('desc') }
   }
 
-  const hasFilters = search || condo !== 'all' || beds !== 'all' || guestFav || petOnly || alertsOnly
-  const clearFilters = () => { setSearch(''); setCondo('all'); setBeds('all'); setGuestFav(false); setPetOnly(false); onClearAlerts?.() }
+  const hasFilters = searchInput || condo !== 'all' || beds !== 'all' || guestFav || petOnly || alertsOnly
+  const clearFilters = () => { setSearchInput(''); setCondo('all'); setBeds('all'); setGuestFav(false); setPetOnly(false); onClearAlerts?.() }
 
   const thProps = { sortCol, sortDir, onSort: toggleSort }
 
@@ -110,8 +120,8 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
         <div className="relative flex-1 min-w-[180px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
           <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
             placeholder="Buscar propriedade..."
             className="w-full pl-8 pr-3 py-2 text-sm bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-gray-800 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500"
           />
@@ -175,8 +185,72 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
         </span>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Mobile card view */}
+      <div className="sm:hidden divide-y divide-gray-100 dark:divide-slate-800/60">
+        {filtered.length === 0 && (
+          <div className="py-10 text-center text-sm text-gray-400 dark:text-slate-500">
+            Nenhuma propriedade encontrada
+            {hasFilters && (
+              <button onClick={clearFilters} className="ml-2 text-blue-400 hover:text-blue-300 underline">Limpar filtros</button>
+            )}
+          </div>
+        )}
+        {filtered.map(p => (
+          <div key={p.name} className="p-4 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{p.name}</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{p.condominium} · {p.bedrooms} quartos</p>
+              </div>
+              <div className="flex flex-wrap gap-1 justify-end shrink-0">
+                {p.guestFavorite && (
+                  <span className="text-xs bg-amber-500/20 text-amber-500 dark:text-amber-400 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                    <Trophy size={9} />GF
+                  </span>
+                )}
+                {p.isPet && (
+                  <span className="text-xs bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                    <PawPrint size={9} />Pet
+                  </span>
+                )}
+                {p.acao && (
+                  <span className="text-xs bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full flex items-center gap-0.5" title={p.acao}>
+                    <AlertCircle size={9} />Ação
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {p.ytdRental > 0 && (
+                <span className="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-lg font-medium">
+                  Rental: {fmtUSDk(p.ytdRental)}
+                </span>
+              )}
+              {p.ownerYTD > 0 && (
+                <span className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-lg font-medium">
+                  Prop: {fmtUSDk(p.ownerYTD)}
+                </span>
+              )}
+              <span className="bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 px-2 py-1 rounded-lg">
+                Occ: <OccBadge value={p.avgOccupancy} />
+              </span>
+              {p.rating > 0 && (
+                <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-1 rounded-lg flex items-center gap-1">
+                  <Star size={10} fill="currentColor" />{p.rating.toFixed(2)}
+                </span>
+              )}
+              {p.basePrice > 0 && (
+                <span className="bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 px-2 py-1 rounded-lg">
+                  Base: {fmtUSD(p.basePrice)}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-[#0d1117]">
             <tr>
@@ -263,7 +337,7 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
             )}
           </tbody>
         </table>
-      </div>
+      </div>{/* end desktop table */}
     </div>
   )
 }

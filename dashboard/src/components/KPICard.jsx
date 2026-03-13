@@ -1,4 +1,4 @@
-export default function KPICard({ icon: Icon, label, value, sub, color = 'blue', trend }) {
+export default function KPICard({ icon: Icon, label, value, sub, tooltip, color = 'blue', trend }) {
   const colors = {
     blue:   { bg: 'from-blue-50 to-blue-50/50 dark:from-blue-500/10 dark:to-blue-600/5',     icon: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400',     border: 'border-blue-100 dark:border-blue-500/20' },
     cyan:   { bg: 'from-cyan-50 to-cyan-50/50 dark:from-cyan-500/10 dark:to-cyan-600/5',     icon: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',     border: 'border-cyan-100 dark:border-cyan-500/20' },
@@ -11,19 +11,28 @@ export default function KPICard({ icon: Icon, label, value, sub, color = 'blue',
   const c = colors[color] || colors.blue
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border ${c.border} bg-gradient-to-br ${c.bg} bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-none`}>
+    <div
+      className={`relative overflow-hidden rounded-2xl border ${c.border} bg-gradient-to-br ${c.bg} bg-white dark:bg-[#111827] p-4 sm:p-5 shadow-sm dark:shadow-none group`}
+      title={tooltip || label}
+    >
       <div className="flex items-start justify-between mb-3">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${c.icon}`}>
-          <Icon size={18} />
+        <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${c.icon}`}>
+          <Icon size={16} />
         </div>
         {trend !== undefined && (
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${trend >= 0 ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'}`}>
-            {trend >= 0 ? '+' : ''}{trend}%
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+            trend > 0
+              ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
+              : trend < 0
+              ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
+              : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400'
+          }`}>
+            {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{value}</p>
-      <p className="text-xs font-medium text-gray-500 dark:text-slate-400">{label}</p>
+      <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1 leading-tight">{value}</p>
+      <p className="text-xs font-medium text-gray-500 dark:text-slate-400 leading-relaxed">{label}</p>
       {sub && <p className="text-xs text-gray-400 dark:text-slate-600 mt-1">{sub}</p>}
     </div>
   )
