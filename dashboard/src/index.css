@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* CSS variables for chart tooltip (not coverable by Tailwind dark: since they're inline styles) */
+:root {
+  --tooltip-bg: #ffffff;
+  --tooltip-border: #e2e8f0;
+  --tooltip-text: #1e293b;
+  --tooltip-item: #475569;
+  --tooltip-label: #64748b;
+  --chart-grid: #f1f5f9;
+  --chart-tick: #94a3b8;
+  --chart-cursor: rgba(0,0,0,0.04);
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+}
+
+.dark {
+  --tooltip-bg: #1a1d2e;
+  --tooltip-border: #2d3748;
+  --tooltip-text: #e2e8f0;
+  --tooltip-item: #cbd5e1;
+  --tooltip-label: #94a3b8;
+  --chart-grid: #1e293b;
+  --chart-tick: #64748b;
+  --chart-cursor: rgba(255,255,255,0.04);
+  --scrollbar-track: #0b0f1a;
+  --scrollbar-thumb: #2d3748;
+  --scrollbar-thumb-hover: #4a5568;
+}
+
+body {
+  background: #f8fafc;
+  color: #1e293b;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dark body {
+  background: #0b0f1a;
+  color: #e2e8f0;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Theme transition for all elements */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+
+/* Disable transition on charts (causes flickering) */
+svg * { transition: none !important; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
