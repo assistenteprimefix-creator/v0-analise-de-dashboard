@@ -1,28 +1,35 @@
 import { useMemo } from 'react'
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
-import { Sun, CloudRain, Thermometer, TrendingUp, Calendar } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react'
 import { getTooltipStyle, GRID_COLOR, TICK_COLOR } from '../utils/chartTheme'
 
+// Definicao de temporadas conforme regra do cliente
 const SEASONS = {
-  'Jan': 'winter',
-  'Fev': 'winter',
-  'Mar': 'spring',
-  'Abr': 'spring',
-  'Mai': 'spring',
-  'Jun': 'summer',
-  'Jul': 'summer',
-  'Ago': 'summer',
-  'Set': 'fall',
-  'Out': 'fall',
-  'Nov': 'fall',
-  'Dez': 'winter',
+  'Jan': 'alta',   // Alta Temporada
+  'Fev': 'alta',   // Alta Temporada
+  'Mar': 'alta',   // Alta Temporada
+  'Abr': 'media',  // Media Temporada
+  'Mai': 'baixa',  // Baixa Temporada
+  'Jun': 'media',  // Media Temporada
+  'Jul': 'alta',   // Alta Temporada
+  'Ago': 'baixa',  // Baixa Temporada
+  'Set': 'baixa',  // Baixa Temporada
+  'Out': 'baixa',  // Baixa Temporada
+  'Nov': 'media',  // Media Temporada
+  'Dez': 'alta',   // Alta Temporada
 }
 
 const SEASON_LABELS = {
-  winter: { label: 'Inverno', icon: CloudRain, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' },
-  spring: { label: 'Primavera', icon: Sun, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-500/10' },
-  summer: { label: 'Verao', icon: Thermometer, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10' },
-  fall: { label: 'Outono', icon: Calendar, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-500/10' },
+  alta: { label: 'Alta Temporada', icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-500/10', border: 'border-green-200 dark:border-green-500/30' },
+  media: { label: 'Media Temporada', icon: Minus, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'border-amber-200 dark:border-amber-500/30' },
+  baixa: { label: 'Baixa Temporada', icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-500/10', border: 'border-red-200 dark:border-red-500/30' },
+}
+
+// Meses por temporada para referencia
+const SEASON_MONTHS = {
+  alta: ['Jan', 'Fev', 'Mar', 'Jul', 'Dez'],
+  media: ['Abr', 'Jun', 'Nov'],
+  baixa: ['Mai', 'Ago', 'Set', 'Out'],
 }
 
 const fmtUSD = v => {
@@ -35,8 +42,8 @@ export default function SeasonalityChart({ data }) {
   const analysis = useMemo(() => {
     if (!data.length) return null
 
-    // Group by season
-    const seasonData = { winter: [], spring: [], summer: [], fall: [] }
+    // Group by season (Alta, Media, Baixa)
+    const seasonData = { alta: [], media: [], baixa: [] }
     data.forEach(m => {
       const season = SEASONS[m.mes]
       if (season) {
@@ -106,35 +113,46 @@ export default function SeasonalityChart({ data }) {
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Season Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {analysis.seasonStats.map(s => {
+        {/* Season Cards - Ordenados: Alta, Media, Baixa */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {['alta', 'media', 'baixa'].map(seasonKey => {
+            const s = analysis.seasonStats.find(stat => stat.season === seasonKey)
+            if (!s) return null
             const config = SEASON_LABELS[s.season]
             const Icon = config.icon
-            const isBest = s.season === analysis.bestRevenue?.season
 
             return (
               <div
                 key={s.season}
-                className={`rounded-xl border p-4 ${config.bg} ${
-                  isBest ? 'border-2 border-green-400 dark:border-green-500' : 'border-gray-200 dark:border-slate-700'
-                }`}
+                className={`rounded-xl border p-4 ${config.bg} ${config.border}`}
               >
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Icon size={16} className={config.color} />
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{config.label}</span>
+                    <div className={`w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center`}>
+                      <Icon size={16} className={config.color} />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">{config.label}</span>
                   </div>
-                  {isBest && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500 text-white font-medium">
-                      Melhor
-                    </span>
-                  )}
                 </div>
-                <p className="text-xl font-bold text-gray-900 dark:text-white">{fmtUSD(s.avgRevenue)}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{fmtUSD(s.avgRevenue)}</p>
                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                  {s.avgOccupancy}% ocupacao | {s.avgBookings} reservas/mes
+                  Media por mes | {s.months} meses
                 </p>
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700/50 grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Ocupacao</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{s.avgOccupancy}%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Reservas/mes</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{s.avgBookings}</p>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500">
+                    Meses: {SEASON_MONTHS[s.season].join(', ')}
+                  </p>
+                </div>
               </div>
             )
           })}
@@ -195,45 +213,38 @@ export default function SeasonalityChart({ data }) {
           </div>
         </div>
 
-        {/* Insights */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-100 dark:border-green-500/20 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp size={14} className="text-green-500" />
-              <span className="text-xs font-medium text-green-700 dark:text-green-400">Alta Temporada</span>
+        {/* Insights e Recomendacoes */}
+        <div className="rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 p-4">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+            <Calendar size={14} className="text-blue-500" />
+            Insights de Temporada
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Maior Receita</p>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {SEASON_LABELS[analysis.bestRevenue?.season]?.label || '-'}
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400">
+                {fmtUSD(analysis.bestRevenue?.avgRevenue || 0)}/mes em media
+              </p>
             </div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              {SEASON_LABELS[analysis.bestRevenue?.season]?.label || '-'}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-              Media de {fmtUSD(analysis.bestRevenue?.avgRevenue || 0)}/mes
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar size={14} className="text-blue-500" />
-              <span className="text-xs font-medium text-blue-700 dark:text-blue-400">Melhor Ocupacao</span>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Maior Ocupacao</p>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {SEASON_LABELS[analysis.bestOccupancy?.season]?.label || '-'}
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                {analysis.bestOccupancy?.avgOccupancy || 0}% de ocupacao
+              </p>
             </div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              {SEASON_LABELS[analysis.bestOccupancy?.season]?.label || '-'}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-              {analysis.bestOccupancy?.avgOccupancy || 0}% de ocupacao media
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <CloudRain size={14} className="text-amber-500" />
-              <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Baixa Temporada</span>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Oportunidade</p>
+              <p className="font-medium text-gray-900 dark:text-white">Baixa Temporada</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Maio, Ago, Set, Out - Promocoes recomendadas
+              </p>
             </div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              {SEASON_LABELS[analysis.worstSeason?.season]?.label || '-'}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-              Oportunidade de promocoes
-            </p>
           </div>
         </div>
       </div>
