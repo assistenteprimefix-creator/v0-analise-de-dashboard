@@ -1,4 +1,4 @@
-import { RefreshCw, LayoutDashboard, Home, Wrench, Clock, Sun, Moon, Settings, TrendingUp } from 'lucide-react'
+import { RefreshCw, LayoutDashboard, Home, Wrench, Clock, Sun, Moon, Settings, TrendingUp, Search, Command } from 'lucide-react'
 import { useTheme } from '../hooks/useTheme'
 
 const TABS = [
@@ -33,9 +33,24 @@ export default function Header({ lastUpdated, onRefresh, loading, refreshing, ac
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Search trigger */}
+          <button
+            onClick={() => {
+              // Trigger the CommandPalette via keyboard event
+              window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))
+            }}
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 text-sm hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+          >
+            <Search size={14} />
+            <span className="text-xs">Buscar...</span>
+            <kbd className="hidden md:flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-200 dark:bg-slate-700 text-[10px] font-medium text-gray-500 dark:text-slate-400">
+              <Command size={10} />K
+            </kbd>
+          </button>
+
           {/* Sync status */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700">
-            <span className="text-[10px] text-gray-400 dark:text-slate-500 uppercase tracking-wide">Ultima Sync</span>
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700">
+            <span className="text-[10px] text-gray-400 dark:text-slate-500 uppercase tracking-wide">Sync</span>
             <span className="text-xs font-semibold text-gray-700 dark:text-slate-200">{fmt}</span>
           </div>
 

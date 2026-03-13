@@ -3,6 +3,8 @@ import { AlertTriangle } from 'lucide-react'
 import { useSheets } from './hooks/useSheets'
 import { ThemeContext, useThemeProvider } from './hooks/useTheme'
 import Header from './components/Header'
+import CommandPalette from './components/CommandPalette'
+import PropertyDetailModal from './components/PropertyDetailModal'
 import GlobalView from './pages/GlobalView'
 import PortfolioView from './pages/PortfolioView'
 import OperationsView from './pages/OperationsView'
@@ -11,6 +13,7 @@ export default function App() {
   const theme = useThemeProvider()
   const { monthly, properties, loading, refreshing, error, lastUpdated, refresh } = useSheets()
   const [activeTab, setActiveTab] = useState('global')
+  const [selectedProperty, setSelectedProperty] = useState(null)
 
   const kpis = useMemo(() => {
     const active = monthly.filter(m => m.bookings > 0 || m.rental > 0)
@@ -99,6 +102,26 @@ export default function App() {
             />
           )}
         </main>
+
+        {/* Command Palette */}
+        <CommandPalette
+          properties={properties}
+          activeTab={activeTab}
+          onNavigate={setActiveTab}
+          onPropertySelect={(p) => {
+            setActiveTab('portfolio')
+            setSelectedProperty(p)
+          }}
+        />
+
+        {/* Global Property Detail Modal */}
+        {selectedProperty && (
+          <PropertyDetailModal
+            property={selectedProperty}
+            allProperties={properties}
+            onClose={() => setSelectedProperty(null)}
+          />
+        )}
       </div>
     </ThemeContext.Provider>
   )

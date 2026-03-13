@@ -1,8 +1,12 @@
-import { Building2, CalendarCheck, DollarSign, TrendingUp, Users, BarChart2, PiggyBank } from 'lucide-react'
+import { useState } from 'react'
+import { Building2, CalendarCheck, DollarSign, TrendingUp, Users, BarChart2, PiggyBank, ChevronDown, ChevronUp } from 'lucide-react'
 import KPICard from '../components/KPICard'
 import { RevenueChart, OccupancyChart, BookingsChart } from '../components/Charts'
 import InsightsPanel from '../components/InsightsPanel'
 import RevenueBreakdown from '../components/RevenueBreakdown'
+import CostsBreakdown from '../components/CostsBreakdown'
+import SeasonalityChart from '../components/SeasonalityChart'
+import GoalsTracker from '../components/GoalsTracker'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { KPISkeleton, ChartSkeleton, InsightsSkeleton } from '../components/Skeleton'
 
@@ -14,6 +18,7 @@ const fmtUSD = (n) => {
 
 export default function GlobalView({ monthly, properties, kpis, loading }) {
   const isLoading = loading && !monthly.length
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   return (
     <div className="space-y-6">
@@ -122,6 +127,41 @@ export default function GlobalView({ monthly, properties, kpis, loading }) {
           </ErrorBoundary>
           <ErrorBoundary>
             <BookingsChart data={monthly} />
+          </ErrorBoundary>
+        </div>
+      )}
+
+      {/* Goals Tracker */}
+      {!isLoading && (
+        <ErrorBoundary>
+          <GoalsTracker monthly={monthly} properties={properties} kpis={kpis} />
+        </ErrorBoundary>
+      )}
+
+      {/* Advanced Analytics Toggle */}
+      {!isLoading && (
+        <button
+          onClick={() => setShowAdvanced(v => !v)}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-[#111827] text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+        >
+          {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <span className="text-sm font-medium">
+            {showAdvanced ? 'Ocultar Analises Avancadas' : 'Ver Analises Avancadas (Custos & Sazonalidade)'}
+          </span>
+        </button>
+      )}
+
+      {/* Advanced Analytics Section */}
+      {!isLoading && showAdvanced && (
+        <div className="space-y-6">
+          {/* Costs Breakdown */}
+          <ErrorBoundary>
+            <CostsBreakdown data={monthly} />
+          </ErrorBoundary>
+
+          {/* Seasonality Chart */}
+          <ErrorBoundary>
+            <SeasonalityChart data={monthly} />
           </ErrorBoundary>
         </div>
       )}
