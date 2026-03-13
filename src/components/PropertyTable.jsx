@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { Search, Star, ChevronUp, ChevronDown, AlertCircle, Trophy, X, PawPrint } from 'lucide-react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { Search, Star, ChevronUp, ChevronDown, AlertCircle, Trophy, X, PawPrint, Download, SlidersHorizontal, Eye } from 'lucide-react'
 
 function useDebounce(value, delay = 250) {
   const [debounced, setDebounced] = useState(value)
@@ -50,7 +50,7 @@ function getPropertyValue(p, col) {
   return p[col]
 }
 
-export default function PropertyTable({ properties, alertsOnly = false, onClearAlerts }) {
+export default function PropertyTable({ properties, alertsOnly = false, onClearAlerts, onPropertyClick }) {
   const [searchInput, setSearchInput] = useState('')
   const search = useDebounce(searchInput, 250)
   const [condo, setCondo] = useState('all')
@@ -59,6 +59,9 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
   const [petOnly, setPetOnly] = useState(false)
   const [sortCol, setSortCol] = useState('ytdRental')
   const [sortDir, setSortDir] = useState('desc')
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [occRange, setOccRange] = useState([0, 100])
+  const [priceRange, setPriceRange] = useState([0, 10000])
 
   const condos = useMemo(() => {
     const set = new Set(properties.map(p => p.condominium).filter(Boolean))
@@ -86,6 +89,14 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
     if (beds !== 'all') list = list.filter(p => p.bedrooms === Number(beds))
     if (guestFav) list = list.filter(p => p.guestFavorite)
     if (petOnly) list = list.filter(p => p.isPet)
+    // Advanced filters
+    if (showAdvanced) {
+      list = list.filter(p => {
+        const occ = p.avgOccupancy || 0
+        const price = p.basePrice || 0
+        return occ >= occRange[0] && occ <= occRange[1] && price >= priceRange[0] && price <= priceRange[1]
+      })
+    }
 
     list.sort((a, b) => {
       let va = getPropertyValue(a, sortCol)
@@ -99,15 +110,39 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
       return 0
     })
     return list
-  }, [properties, search, condo, beds, guestFav, petOnly, sortCol, sortDir])
+  }, [properties, search, condo, beds, guestFav, petOnly, sortCol, sortDir, showAdvanced, occRange, priceRange])
+
+  const exportCSV = useCallback(() => {
+    const headers = ['Nome', 'Condominio', 'Quartos', 'Ocupacao Media', 'Rental YTD', 'Proprietario YTD', 'Avaliacao', 'Preco Base', 'Guest Favorite', 'Pet Friendly']
+    const rows = filtered.map(p => [
+      p.name,
+      p.condominium,
+      p.bedrooms,
+      p.avgOccupancy,
+      p.ytdRental,
+      p.ownerYTD,
+      p.rating,
+      p.basePrice,
+      p.guestFavorite ? 'Sim' : 'Nao',
+      p.isPet ? 'Sim' : 'Nao',
+    ])
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `propriedades_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [filtered])
 
   const toggleSort = col => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortCol(col); setSortDir('desc') }
   }
 
-  const hasFilters = searchInput || condo !== 'all' || beds !== 'all' || guestFav || petOnly || alertsOnly
-  const clearFilters = () => { setSearchInput(''); setCondo('all'); setBeds('all'); setGuestFav(false); setPetOnly(false); onClearAlerts?.() }
+  const hasFilters = searchInput || condo !== 'all' || beds !== 'all' || guestFav || petOnly || alertsOnly || (showAdvanced && (occRange[0] > 0 || occRange[1] < 100 || priceRange[0] > 0 || priceRange[1] < 10000))
+  const clearFilters = () => { setSearchInput(''); setCondo('all'); setBeds('all'); setGuestFav(false); setPetOnly(false); setOccRange([0, 100]); setPriceRange([0, 10000]); onClearAlerts?.() }
 
   const thProps = { sortCol, sortDir, onSort: toggleSort }
 
@@ -169,6 +204,18 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
           Pet
         </button>
 
+        <button
+          onClick={() => setShowAdvanced(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-xl border transition-colors ${
+            showAdvanced
+              ? 'bg-blue-500/20 border-blue-500/40 text-blue-600 dark:text-blue-400'
+              : 'bg-gray-50 dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
+          }`}
+        >
+          <SlidersHorizontal size={13} />
+          Avancado
+        </button>
+
         {hasFilters && (
           <button
             onClick={clearFilters}
@@ -180,10 +227,67 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
           </button>
         )}
 
-        <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">
-          {filtered.length} de {properties.length} propriedades
-        </span>
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-xs text-gray-400 dark:text-slate-500">
+            {filtered.length} de {properties.length}
+          </span>
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg bg-green-500 hover:bg-green-600 text-white transition-colors"
+            title="Exportar para CSV"
+          >
+            <Download size={12} />
+            CSV
+          </button>
+        </div>
       </div>
+
+      {/* Advanced Filters */}
+      {showAdvanced && (
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50 flex flex-wrap gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 dark:text-slate-400">Ocupacao:</span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={occRange[0]}
+              onChange={e => setOccRange([Number(e.target.value), occRange[1]])}
+              className="w-14 px-2 py-1 text-xs bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg"
+            />
+            <span className="text-xs text-gray-400">-</span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={occRange[1]}
+              onChange={e => setOccRange([occRange[0], Number(e.target.value)])}
+              className="w-14 px-2 py-1 text-xs bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg"
+            />
+            <span className="text-xs text-gray-400">%</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 dark:text-slate-400">Preco Base:</span>
+            <span className="text-xs text-gray-400">$</span>
+            <input
+              type="number"
+              min={0}
+              value={priceRange[0]}
+              onChange={e => setPriceRange([Number(e.target.value), priceRange[1]])}
+              className="w-20 px-2 py-1 text-xs bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg"
+            />
+            <span className="text-xs text-gray-400">-</span>
+            <span className="text-xs text-gray-400">$</span>
+            <input
+              type="number"
+              min={0}
+              value={priceRange[1]}
+              onChange={e => setPriceRange([priceRange[0], Number(e.target.value)])}
+              className="w-20 px-2 py-1 text-xs bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Mobile card view */}
       <div className="sm:hidden divide-y divide-gray-100 dark:divide-slate-800/60">
@@ -196,10 +300,10 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
           </div>
         )}
         {filtered.map(p => (
-          <div key={p.name} className="p-4 space-y-2">
+          <div key={p.name} className="p-4 space-y-2" onClick={() => onPropertyClick?.(p)}>
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{p.name}</p>
+              <div className="min-w-0 cursor-pointer">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate hover:text-blue-500">{p.name}</p>
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{p.condominium} · {p.bedrooms} quartos</p>
               </div>
               <div className="flex flex-wrap gap-1 justify-end shrink-0">
@@ -268,9 +372,18 @@ export default function PropertyTable({ properties, alertsOnly = false, onClearA
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-slate-800/60">
             {filtered.map(p => (
-              <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-slate-800/30 transition-colors">
-                <td className="px-3 py-2.5 sticky left-0 bg-white dark:bg-[#111827] hover:bg-gray-50 dark:hover:bg-[#161f30] z-10">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white block">{p.name}</span>
+              <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-slate-800/30 transition-colors group">
+                <td className="px-3 py-2.5 sticky left-0 bg-white dark:bg-[#111827] group-hover:bg-gray-50 dark:group-hover:bg-[#161f30] z-10">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onPropertyClick?.(p)}
+                      className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 flex items-center justify-center text-blue-500 transition-colors shrink-0"
+                      title="Ver detalhes"
+                    >
+                      <Eye size={12} />
+                    </button>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer hover:text-blue-500" onClick={() => onPropertyClick?.(p)}>{p.name}</span>
+                  </div>
                   <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                     <span className="text-xs text-gray-400 dark:text-slate-500">{p.condominium}</span>
                     {p.guestFavorite && (

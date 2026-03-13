@@ -1,10 +1,15 @@
-import { Building2, DollarSign, TrendingUp, Home, Bed, MapPin } from 'lucide-react'
+import { useState } from 'react'
+import { Building2, DollarSign, TrendingUp, Grid3x3, BarChart3, GitCompare } from 'lucide-react'
 import PropertyTable from '../components/PropertyTable'
 import TopPerformers from '../components/TopPerformers'
 import CondoBreakdown from '../components/CondoBreakdown'
 import OccupancyDistribution from '../components/OccupancyDistribution'
 import BedroomStats from '../components/BedroomStats'
 import RevenueRanking from '../components/RevenueRanking'
+import OccupancyHeatmap from '../components/OccupancyHeatmap'
+import PricingAnalytics from '../components/PricingAnalytics'
+import PropertyComparator from '../components/PropertyComparator'
+import PropertyDetailModal from '../components/PropertyDetailModal'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { TableSkeleton } from '../components/Skeleton'
 
@@ -35,8 +40,26 @@ function StatCard({ label, value, sub, color = 'blue' }) {
   )
 }
 
+function TabButton({ active, onClick, icon: Icon, label }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+        active
+          ? 'bg-blue-500 text-white'
+          : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700'
+      }`}
+    >
+      <Icon size={14} />
+      {label}
+    </button>
+  )
+}
+
 export default function PortfolioView({ properties, loading }) {
   const isLoading = loading && !properties.length
+  const [activeTab, setActiveTab] = useState('overview')
+  const [selectedProperty, setSelectedProperty] = useState(null)
 
   // Calculate portfolio stats
   const totalProperties = properties.length
@@ -48,6 +71,10 @@ export default function PortfolioView({ properties, loading }) {
     ? Math.round(properties.reduce((s, p) => s + (p.avgOccupancy || 0), 0) / properties.length)
     : 0
 
+  const handlePropertyClick = (property) => {
+    setSelectedProperty(property)
+  }
+
   return (
     <div className="space-y-6">
       {/* Portfolio Summary Stats */}
@@ -55,59 +82,99 @@ export default function PortfolioView({ properties, loading }) {
         <StatCard label="Total Propriedades" value={totalProperties} color="blue" />
         <StatCard label="Total Quartos" value={totalBedrooms} color="purple" />
         <StatCard label="Condominios" value={condoCount} color="green" />
-        <StatCard label="Guest Favorites" value={guestFavorites} sub={`${Math.round(guestFavorites/totalProperties*100)}% do portfolio`} color="amber" />
-        <StatCard label="Pet Friendly" value={petFriendly} sub={`${Math.round(petFriendly/totalProperties*100)}% aceita pets`} color="green" />
+        <StatCard label="Guest Favorites" value={guestFavorites} sub={`${totalProperties ? Math.round(guestFavorites/totalProperties*100) : 0}% do portfolio`} color="amber" />
+        <StatCard label="Pet Friendly" value={petFriendly} sub={`${totalProperties ? Math.round(petFriendly/totalProperties*100) : 0}% aceita pets`} color="green" />
         <StatCard label="Ocupacao Media" value={`${avgOccupancy}%`} color={avgOccupancy >= 60 ? 'green' : 'amber'} />
       </div>
 
-      {/* Analytics row: Condo + Occ Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ErrorBoundary>
-          <CondoBreakdown properties={properties} />
-        </ErrorBoundary>
-        <ErrorBoundary>
-          <OccupancyDistribution properties={properties} />
-        </ErrorBoundary>
+      {/* Tab Navigation */}
+      <div className="flex flex-wrap gap-2">
+        <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={Building2} label="Visao Geral" />
+        <TabButton active={activeTab === 'heatmap'} onClick={() => setActiveTab('heatmap')} icon={Grid3x3} label="Heatmap" />
+        <TabButton active={activeTab === 'pricing'} onClick={() => setActiveTab('pricing')} icon={BarChart3} label="Precos" />
+        <TabButton active={activeTab === 'compare'} onClick={() => setActiveTab('compare')} icon={GitCompare} label="Comparar" />
       </div>
 
-      {/* Bedroom Stats */}
-      <ErrorBoundary>
-        <BedroomStats properties={properties} />
-      </ErrorBoundary>
-
-      {/* Revenue Ranking per property */}
-      <div>
-        <SectionTitle icon={DollarSign} title="Ranking de Receita por Propriedade" />
-        <div className="mt-3">
-          <ErrorBoundary>
-            <RevenueRanking properties={properties} />
-          </ErrorBoundary>
-        </div>
-      </div>
-
-      {/* Top Performers */}
-      <div>
-        <SectionTitle icon={TrendingUp} title="Analise de Performance" />
-        <div className="mt-3">
-          <ErrorBoundary>
-            <TopPerformers properties={properties} />
-          </ErrorBoundary>
-        </div>
-      </div>
-
-      {/* Properties Table */}
-      <div>
-        <SectionTitle icon={Building2} title="Todas as Propriedades" />
-        <div className="mt-3">
-          {isLoading ? (
-            <TableSkeleton />
-          ) : (
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Analytics row: Condo + Occ Distribution */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ErrorBoundary>
-              <PropertyTable properties={properties} />
+              <CondoBreakdown properties={properties} />
             </ErrorBoundary>
-          )}
+            <ErrorBoundary>
+              <OccupancyDistribution properties={properties} />
+            </ErrorBoundary>
+          </div>
+
+          {/* Bedroom Stats */}
+          <ErrorBoundary>
+            <BedroomStats properties={properties} />
+          </ErrorBoundary>
+
+          {/* Revenue Ranking per property */}
+          <div>
+            <SectionTitle icon={DollarSign} title="Ranking de Receita por Propriedade" />
+            <div className="mt-3">
+              <ErrorBoundary>
+                <RevenueRanking properties={properties} />
+              </ErrorBoundary>
+            </div>
+          </div>
+
+          {/* Top Performers */}
+          <div>
+            <SectionTitle icon={TrendingUp} title="Analise de Performance" />
+            <div className="mt-3">
+              <ErrorBoundary>
+                <TopPerformers properties={properties} />
+              </ErrorBoundary>
+            </div>
+          </div>
+
+          {/* Properties Table */}
+          <div>
+            <SectionTitle icon={Building2} title="Todas as Propriedades" />
+            <div className="mt-3">
+              {isLoading ? (
+                <TableSkeleton />
+              ) : (
+                <ErrorBoundary>
+                  <PropertyTable properties={properties} onPropertyClick={handlePropertyClick} />
+                </ErrorBoundary>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'heatmap' && (
+        <ErrorBoundary>
+          <OccupancyHeatmap properties={properties} onPropertyClick={handlePropertyClick} />
+        </ErrorBoundary>
+      )}
+
+      {activeTab === 'pricing' && (
+        <ErrorBoundary>
+          <PricingAnalytics properties={properties} />
+        </ErrorBoundary>
+      )}
+
+      {activeTab === 'compare' && (
+        <ErrorBoundary>
+          <PropertyComparator properties={properties} />
+        </ErrorBoundary>
+      )}
+
+      {/* Property Detail Modal */}
+      {selectedProperty && (
+        <PropertyDetailModal
+          property={selectedProperty}
+          allProperties={properties}
+          onClose={() => setSelectedProperty(null)}
+        />
+      )}
     </div>
   )
 }
